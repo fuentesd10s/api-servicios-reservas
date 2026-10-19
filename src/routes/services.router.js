@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import ServiceManager from '../managers/ServiceManager.js';
+import { serviceManager } from '../managers/instances.js';
 
 const router = Router();
 const serviceManager = new ServiceManager();
