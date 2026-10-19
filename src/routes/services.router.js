@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { serviceManager } from '../managers/instances.js';
 
 const router = Router();
-const serviceManager = new ServiceManager();
 
 router.get('/', (req, res, next) => {
   try {
