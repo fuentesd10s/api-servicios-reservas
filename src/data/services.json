@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "name": "Corte de cabello",
+    "description": "Corte de cabello clásico con lavado incluido",
+    "duration": 30,
+    "price": 5000,
+    "category": "peluquería",
+    "available": true
+  },
+  {
+    "id": 2,
+    "name": "Manicura",
+    "description": "Manicura completa con esmaltado semipermanente",
+    "duration": 45,
+    "price": 6500,
+    "category": "estética",
+    "available": true
+  },
+  {
+    "id": 3,
+    "name": "Masaje descontracturante",
+    "description": "Masaje terapéutico de espalda y cuello",
+    "duration": 60,
+    "price": 9000,
+    "category": "bienestar",
+    "available": false
+  },
+  {
+    "id": 4,
+    "name": "Depilación",
+    "description": "Depilación con cera",
+    "duration": 20,
+    "price": 4000,
+    "category": "estética",
+    "available": true
+  }
+]
