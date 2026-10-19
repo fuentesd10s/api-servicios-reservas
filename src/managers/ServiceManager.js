@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { AppError } from '../errors/AppError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,16 +26,28 @@ class ServiceManager {
       const raw = fs.readFileSync(DATA_PATH, 'utf-8');
       return JSON.parse(raw);
     } catch (error) {
-      console.error(`No se pudo leer ${DATA_PATH}, se inicia con lista vacía.`);
-      return [];
+      if (error.code === 'ENOENT') {
+        return [];
+      }
+      throw new Error(`No se pudo leer ${DATA_PATH}: ${error.message}`);
     }
   }
 
   #saveToDisk() {
-    fs.writeFileSync(DATA_PATH, JSON.stringify(this.services, null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(DATA_PATH, JSON.stringify(this.services, null, 2), 'utf-8');
+    } catch (error) {
+      throw new Error(`No se pudo guardar ${DATA_PATH}: ${error.message}`);
+    }
   }
 
-    getServices(filters = {}) {
+  #generateId() {
+    return this.services.length > 0
+      ? Math.max(...this.services.map((s) => s.id)) + 1
+      : 1;
+  }
+
+  getServices(filters = {}) {
     const { category, available } = filters;
 
     return this.services.filter((service) => {
@@ -53,16 +66,13 @@ class ServiceManager {
 
   getServiceById(id) {
     const service = this.services.find((s) => s.id === Number(id));
-    return service || { error: `No existe un servicio con id ${id}` };
+    if (!service) {
+      throw new AppError(`No existe un servicio con id ${id}`, 404);
+    }
+    return service;
   }
 
-    #generateId() {
-    return this.services.length > 0
-      ? Math.max(...this.services.map((s) => s.id)) + 1
-      : 1;
-  }
-
-    addService(serviceData) {
+  addService(serviceData) {
     const missing = REQUIRED_FIELDS.filter(
       (field) =>
         serviceData[field] === undefined ||
@@ -71,7 +81,7 @@ class ServiceManager {
     );
 
     if (missing.length > 0) {
-      return { error: `Faltan campos requeridos: ${missing.join(', ')}` };
+      throw new AppError(`Faltan campos requeridos: ${missing.join(', ')}`, 400);
     }
 
     const newService = {
@@ -89,10 +99,10 @@ class ServiceManager {
     return newService;
   }
 
-    updateService(id, updatedData) {
+  updateService(id, updatedData) {
     const index = this.services.findIndex((s) => s.id === Number(id));
     if (index === -1) {
-      return { error: `No existe un servicio con id ${id}` };
+      throw new AppError(`No existe un servicio con id ${id}`, 404);
     }
 
     const { id: _ignoredId, ...safeData } = updatedData;
@@ -106,10 +116,10 @@ class ServiceManager {
     return this.services[index];
   }
 
-    deleteService(id) {
+  deleteService(id) {
     const index = this.services.findIndex((s) => s.id === Number(id));
     if (index === -1) {
-      return { error: `No existe un servicio con id ${id}` };
+      throw new AppError(`No existe un servicio con id ${id}`, 404);
     }
 
     const [deleted] = this.services.splice(index, 1);
