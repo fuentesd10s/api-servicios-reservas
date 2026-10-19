@@ -1,6 +1,6 @@
-# API REST de Servicios
+# API de Servicios y Reservas
 
-API REST con Express (ESM) para gestionar el recurso `services` de un Sistema Backend de Turnos y Reservas. Las rutas están en un router y la lógica vive en la clase `ServiceManager`, que persiste los datos en un archivo JSON.
+Primera versión del Sistema Backend de Turnos y Reservas, hecha con Node.js, Express (ESM) y FileSystem. Gestiona dos recursos, `services` y `bookings`, y persiste los datos en archivos JSON, por lo que no se pierden al reiniciar el servidor.
 
 ## Instalación
 
@@ -38,16 +38,15 @@ Si falta alguna, la app no arranca y muestra un mensaje de error.
 
 ```
 src/
-  config/env.config.js
-  managers/ServiceManager.js
-  routes/services.router.js
-  data/services.json
-  app.js
-  server.js
+  app.js                       Configura Express y monta los routers
+  server.js                    Levanta el servidor
+  config/env.config.js         Carga y valida las variables de entorno
+  routes/                      services.router.js, bookings.router.js
+  managers/                    ServiceManager.js, BookingManager.js, instances.js
+  middlewares/errorHandler.js  Manejo central de errores
+  errors/AppError.js           Error con código HTTP
+  data/                        services.json, bookings.json
 ```
-
-- `app.js`: configura Express y monta el router en `/api/services`.
-- `server.js`: levanta el servidor en el puerto del `.env`.
 
 ## Recurso `services`
 
@@ -63,46 +62,70 @@ src/
 }
 ```
 
-El `id` se genera automáticamente y no puede modificarse. `duration` está en minutos.
+El `id` se genera automáticamente y no se puede modificar. `duration` está en minutos.
 
-## Endpoints
+| Método | Ruta                 | Descripción                          | Códigos       |
+|--------|----------------------|--------------------------------------|---------------|
+| GET    | `/api/services`      | Lista los servicios (acepta filtros) | 200           |
+| GET    | `/api/services/:sid` | Obtiene un servicio por id           | 200, 404      |
+| POST   | `/api/services`      | Crea un servicio                     | 201, 400      |
+| PUT    | `/api/services/:sid` | Actualiza un servicio                | 200, 404      |
+| DELETE | `/api/services/:sid` | Elimina un servicio                  | 200, 404      |
 
-| Método | Ruta                 | Descripción                         | Códigos  |
-|--------|----------------------|-------------------------------------|----------|
-| GET    | `/api/services`      | Lista los servicios (acepta filtros) | 200      |
-| GET    | `/api/services/:sid` | Obtiene un servicio por id          | 200, 404 |
-| POST   | `/api/services`      | Crea un servicio                    | 201, 400 |
-| PUT    | `/api/services/:sid` | Actualiza un servicio               | 200, 404 |
-| DELETE | `/api/services/:sid` | Elimina un servicio                 | 200, 404 |
+Filtros en `GET /api/services`: `?category=estética` y `?available=true` (combinables).
 
-### Filtros (query params)
+## Recurso `bookings`
 
-- `?category=estética`: servicios de esa categoría.
-- `?available=true`: servicios disponibles (`false` para los no disponibles).
-- Se pueden combinar: `?category=estética&available=true`.
+```json
+{
+  "id": 1,
+  "clientName": "Gonzalo",
+  "clientEmail": "gonzalo@mail.com",
+  "date": "2026-11-10",
+  "time": "15:00",
+  "status": "pending",
+  "services": [{ "service": 1, "quantity": 2 }]
+}
+```
 
-### Ejemplos
+El `id` se genera automáticamente. Una reserva nueva arranca con `services` vacío y `status` en `pending` si no se indica otro. Si se agrega dos veces el mismo servicio, se incrementa `quantity`.
+
+| Método | Ruta                                | Descripción                              | Códigos       |
+|--------|-------------------------------------|------------------------------------------|---------------|
+| POST   | `/api/bookings`                     | Crea una reserva                         | 201, 400      |
+| GET    | `/api/bookings/:bid`                | Obtiene una reserva por id               | 200, 404      |
+| POST   | `/api/bookings/:bid/services/:sid`  | Agrega un servicio a una reserva         | 200, 404      |
+
+Campos requeridos en `POST /api/bookings`: `clientName`, `clientEmail`, `date`, `time`.
+
+## Errores
+
+Todas las respuestas de error tienen la forma `{ "error": "mensaje" }`:
+
+- `400`: faltan campos o el JSON enviado no es válido.
+- `404`: el servicio o la reserva no existe.
+- `500`: error interno, por ejemplo una falla al leer o escribir los archivos JSON.
+
+## Ejemplos
 
 ```bash
-# Listar y filtrar
+# Listar y filtrar servicios
 curl http://localhost:8080/api/services
 curl "http://localhost:8080/api/services?category=estética&available=true"
 
-# Obtener por id
-curl http://localhost:8080/api/services/1
-
-# Crear (id generado automáticamente)
+# Crear un servicio
 curl -X POST http://localhost:8080/api/services \
   -H "Content-Type: application/json" \
   -d '{"name":"Depilación","description":"Depilación con cera","duration":20,"price":4000,"category":"estética","available":true}'
 
-# Actualizar (el id del body se ignora)
-curl -X PUT http://localhost:8080/api/services/1 \
+# Crear una reserva
+curl -X POST http://localhost:8080/api/bookings \
   -H "Content-Type: application/json" \
-  -d '{"price":5500}'
+  -d '{"clientName":"Gonzalo","clientEmail":"gonzalo@mail.com","date":"2026-11-10","time":"15:00"}'
 
-# Eliminar
-curl -X DELETE http://localhost:8080/api/services/1
+# Agregar el servicio 1 a la reserva 1
+curl -X POST http://localhost:8080/api/bookings/1/services/1
+
+# Ver la reserva
+curl http://localhost:8080/api/bookings/1
 ```
-
-Si faltan campos en el POST, responde `400` con `{ "error": "Faltan campos requeridos: ..." }`. Si el id no existe, responde `404` con `{ "error": "No existe un servicio con id ..." }`.
